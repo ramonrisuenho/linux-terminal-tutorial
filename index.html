@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover"/>
+  <meta name="theme-color" content="#0a0c0a" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <meta name="description" content="LinuxTerminal — Ambiente interativo para aprender os comandos básicos do Linux. Inclui modo jogo CTF (Capture The Flag) com 10 desafios práticos." />
+  <meta name="keywords" content="linux, terminal, comandos, bash, ctf, capture the flag, aprender linux, tutorial" />
+  <meta name="author" content="LinuxTerminal" />
+
+  <!-- Open Graph / social share -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="LinuxTerminal — Aprenda Linux no navegador" />
+  <meta property="og:description" content="Terminal Linux interativo com modo jogo CTF. Pratique comandos sem instalar nada." />
+  <meta property="og:locale" content="pt_BR" />
+  <meta name="twitter:card" content="summary" />
+
+  <!-- Security headers (GitHub Pages não permite headers HTTP, então usamos meta) -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'" />
+
+  <title>LinuxTerminal — Aprenda Linux</title>
+
+  <!-- Favicon SVG inline (sem request extra, evita 404 em CDN) -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230a0c0a'/%3E%3Ctext x='8' y='44' font-family='monospace' font-size='32' font-weight='bold' fill='%2300ff41'%3E%3E_%3C/text%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%230a0c0a'/%3E%3Ctext x='8' y='44' font-family='monospace' font-size='32' font-weight='bold' fill='%2300ff41'%3E%3E_%3C/text%3E%3C/svg%3E" />
+
+  <!-- Fonts (preconnect com crossorigin para Cloudflare/WAF) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" media="print" onload="this.media='all'" />
+  <noscript><link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet" /></noscript>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <div id="app">
+
+    <!-- Backdrop para fechar sidebar em mobile -->
+    <div id="sidebar-backdrop" aria-hidden="true"></div>
+
+    <!-- ═══════════════════════════════════════════════════
+         PAINEL ESQUERDO — MENU / MANUAL
+    ════════════════════════════════════════════════════ -->
+    <aside id="sidebar" aria-label="Guia de referência de comandos">
+
+      <div id="sidebar-header">
+        <div class="logo-block">
+          <span class="logo-icon" aria-hidden="true">&#9003;</span>
+          <div>
+            <div class="logo-title">LinuxTerminal</div>
+            <div class="logo-sub">Guia de Referência</div>
+          </div>
+          <button id="sidebar-close" class="sidebar-close-btn" aria-label="Fechar guia" type="button">&times;</button>
+        </div>
+        <div class="sidebar-meta">Top 30 comandos &middot; v1.0</div>
+      </div>
+
+      <div id="sidebar-search">
+        <span class="search-icon" aria-hidden="true">$</span>
+        <input
+          type="search"
+          id="search-input"
+          placeholder="buscar comando..."
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          aria-label="Buscar comando no guia"
+        />
+      </div>
+
+      <nav id="menu" role="navigation" aria-label="Categorias de comandos"></nav>
+
+    </aside>
+
+    <!-- ═══════════════════════════════════════════════════
+         PAINEL DIREITO — TERMINAL
+    ════════════════════════════════════════════════════ -->
+    <main id="terminal-panel">
+
+      <!-- Barra de título -->
+      <div id="terminal-titlebar">
+        <button id="sidebar-toggle" class="sidebar-toggle-btn" aria-label="Abrir guia de comandos" type="button">
+          <span class="hamburger-icon" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+        </button>
+        <div class="titlebar-dots" aria-hidden="true">
+          <span class="dot dot-red"></span>
+          <span class="dot dot-yellow"></span>
+          <span class="dot dot-green"></span>
+        </div>
+        <div id="terminal-title">usuario@linux: ~</div>
+        <div class="titlebar-actions">
+          <button id="btn-clear" title="Limpar terminal (clear)" type="button">clear</button>
+          <button id="btn-help" title="Exibir ajuda" type="button">help</button>
+        </div>
+      </div>
+
+      <!-- HUD do Modo Jogo CTF -->
+      <div id="ctf-hud" role="status" aria-label="Status do CTF" aria-live="polite">
+        <div class="ctf-hud-block">
+          <div class="ctf-hud-label">Modo</div>
+          <div class="ctf-hud-title">&#9873; CTF ATIVO</div>
+        </div>
+        <div class="ctf-hud-block">
+          <div class="ctf-hud-label">Score</div>
+          <div class="ctf-score" id="ctf-score-display">0 pts</div>
+        </div>
+        <div class="ctf-hud-block ctf-hud-flags">
+          <div class="ctf-hud-label">Flags Encontradas</div>
+          <div class="ctf-flags-row" id="ctf-flags-row"></div>
+        </div>
+        <button class="ctf-hint-btn" id="ctf-hint-btn" title="Pedir dica (-10pts)" type="button" aria-label="Pedir dica">
+          <span aria-hidden="true">&#128161;</span> dica
+        </button>
+      </div>
+
+      <!-- Saída do terminal -->
+      <div id="terminal-output" role="log" aria-live="polite" aria-label="Saída do terminal"></div>
+
+      <!-- Barra de input -->
+      <div id="terminal-inputbar">
+        <span id="prompt-label">usuario@linux:~$&nbsp;</span>
+        <input
+          type="text"
+          id="terminal-input"
+          autocomplete="off"
+          autocorrect="off"
+          autocapitalize="off"
+          spellcheck="false"
+          inputmode="text"
+          enterkeyhint="enter"
+          aria-label="Entrada de comando"
+        />
+        <div id="input-display" aria-hidden="true">
+          <span id="input-before"></span><span id="input-cursor">&nbsp;</span><span id="input-after"></span><span id="input-placeholder">Digite um comando e pressione Enter...</span>
+        </div>
+      </div>
+
+      <!-- Toolbar mobile com teclas especiais (Tab, setas, Ctrl+L, Ctrl+C) -->
+      <div id="mobile-keys" aria-label="Atalhos de teclado">
+        <button data-key="Tab" class="mkey" type="button" aria-label="Tab">Tab</button>
+        <button data-key="ArrowUp" class="mkey" type="button" aria-label="Histórico anterior">&uarr;</button>
+        <button data-key="ArrowDown" class="mkey" type="button" aria-label="Próximo histórico">&darr;</button>
+        <button data-key="ctrl-l" class="mkey" type="button" aria-label="Limpar tela">clear</button>
+        <button data-key="ctrl-c" class="mkey" type="button" aria-label="Cancelar">^C</button>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Tooltip flutuante (apenas desktop) -->
+  <div id="cmd-tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <!-- Notificação de flag capturada -->
+  <div id="flag-notification" aria-live="assertive" aria-atomic="true">
+    <div class="notif-flag" aria-hidden="true">&#128681;</div>
+    <div id="notif-text">FLAG CAPTURADA!</div>
+    <div class="notif-pts" id="notif-pts">+100 pts</div>
+  </div>
+
+  <!-- Tela de vitória CTF -->
+  <div id="ctf-victory" role="dialog" aria-modal="true" aria-label="Missão concluída">
+    <pre class="victory-art" aria-hidden="true">
+  ██████╗████████╗███████╗
+ ██╔════╝╚══██╔══╝██╔════╝
+ ██║        ██║   █████╗
+ ██║        ██║   ██╔══╝
+ ╚██████╗   ██║   ██║
+  ╚═════╝   ╚═╝   ╚═╝     </pre>
+    <div class="victory-title">MISSÃO CONCLUÍDA!</div>
+    <div class="victory-score" id="victory-score">Pontuação Final: 0 pts</div>
+    <div class="victory-sub">Você capturou todas as flags e domina o terminal Linux!</div>
+    <div class="victory-sub" id="victory-time"></div>
+    <button class="victory-btn" id="victory-restart" type="button">&#9654; Jogar Novamente</button>
+    <button class="victory-btn" id="victory-exit" type="button" style="background:transparent;border-color:var(--gray);color:var(--gray)">&#10005; Sair do Modo Jogo</button>
+  </div>
+
+  <!-- noscript fallback -->
+  <noscript>
+    <div style="position:fixed;inset:0;background:#0a0c0a;color:#00ff41;font-family:monospace;display:flex;align-items:center;justify-content:center;padding:20px;text-align:center;z-index:9999">
+      <div>
+        <h1>LinuxTerminal</h1>
+        <p>Este projeto requer JavaScript habilitado para funcionar.</p>
+      </div>
+    </div>
+  </noscript>
+
+  <script src="terminal.js" defer></script>
+</body>
+</html>

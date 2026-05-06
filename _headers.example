@@ -1,0 +1,10 @@
+# Este arquivo NAO funciona no GitHub Pages (que nao suporta headers customizados)
+# Mas funciona se voce migrar para Cloudflare Pages, Netlify ou similar.
+# Os mesmos headers ja estao definidos via <meta> tags em index.html para GitHub Pages.
+
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; script-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'
