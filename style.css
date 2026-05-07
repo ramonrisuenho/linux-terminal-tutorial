@@ -726,6 +726,24 @@ input:focus-visible {
   box-shadow: 0 0 8px var(--green-dim);
 }
 
+/* Botão Enter — destaque visual, fica à direita */
+.mkey-enter {
+  background: var(--green-dark);
+  border-color: var(--green);
+  color: var(--green);
+  margin-left: auto;
+  padding: 8px 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  box-shadow: 0 0 6px var(--green-dark);
+}
+
+.mkey-enter:active {
+  background: var(--green-muted);
+  color: var(--bg);
+  box-shadow: 0 0 14px var(--green);
+}
+
 /* ══════════════════════════════════════════════════════
    TOOLTIP FLUTUANTE — desktop apenas
    ══════════════════════════════════════════════════════ */
