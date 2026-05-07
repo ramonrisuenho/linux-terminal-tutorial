@@ -1265,6 +1265,8 @@ function handleKey(e) {
       const v = inputEl.value;
       inputEl.value = '';
       updateCursorDisplay();
+      // Fecha o teclado virtual em mobile antes de executar
+      if (isMobileViewport()) inputEl.blur();
       executeCommand(v);
       break;
     }
@@ -1393,6 +1395,14 @@ document.querySelectorAll('#mobile-keys .mkey').forEach(btn => {
   btn.addEventListener('click', e => {
     e.preventDefault();
     const key = btn.dataset.key;
+
+    if (key === 'Enter') {
+      // Enter na toolbar: executa e fecha teclado (nao chama focus antes)
+      handleKey({ key: 'Enter', preventDefault: () => {} });
+      return;
+    }
+
+    // Demais teclas: foca o input (mantém teclado aberto)
     inputEl.focus();
 
     if (key === 'ctrl-l') { handleKey({ key: 'l', ctrlKey: true, preventDefault: () => {} }); return; }
