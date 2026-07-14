@@ -50,13 +50,39 @@
       <div id="sidebar-header">
         <div class="logo-block">
           <span class="logo-icon" aria-hidden="true">&#9003;</span>
-          <div>
+          <div class="logo-text">
             <div class="logo-title">LinuxTerminal</div>
             <div class="logo-sub">Guia de Referência</div>
           </div>
+          <div class="social-links" aria-label="Links sociais">
+            <a
+              class="social-link"
+              href="https://www.linkedin.com/in/ramonrisuenho/"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="LinkedIn de Ramon Risuenho"
+              title="LinkedIn"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M6.5 9.2V18H3.7V9.2h2.8ZM5.1 5c.9 0 1.6.6 1.6 1.5S6 8 5.1 8s-1.6-.6-1.6-1.5S4.2 5 5.1 5Zm6.1 4.2.1 1.2c.6-.9 1.5-1.4 2.8-1.4 2 0 3.5 1.3 3.5 4.1V18h-2.8v-4.5c0-1.3-.5-2-1.5-2-.9 0-1.5.6-1.8 1.3V18H8.8V9.2h2.4Z" />
+              </svg>
+            </a>
+            <a
+              class="social-link"
+              href="https://github.com/ramonrisuenho/linux-terminal-tutorial"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="GitHub do projeto Linux Terminal Tutorial"
+              title="GitHub"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 3.7a8.3 8.3 0 0 0-2.6 16.2c.4.1.5-.2.5-.4v-1.4c-2.2.5-2.7-.9-2.7-.9-.3-.8-.8-1-1-1-.7-.5 0-.5 0-.5.8.1 1.2.8 1.2.8.7 1.2 1.8.9 2.3.7.1-.5.3-.9.5-1.1-1.8-.2-3.6-.9-3.6-4 0-.9.3-1.6.8-2.2-.1-.2-.4-1 .1-2.1 0 0 .7-.2 2.3.8.7-.2 1.4-.3 2.1-.3s1.5.1 2.1.3c1.6-1 2.3-.8 2.3-.8.5 1.1.2 1.9.1 2.1.5.6.8 1.3.8 2.2 0 3.1-1.9 3.8-3.6 4 .3.2.5.7.5 1.4v2c0 .2.1.5.5.4A8.3 8.3 0 0 0 12 3.7Z" />
+              </svg>
+            </a>
+          </div>
           <button id="sidebar-close" class="sidebar-close-btn" aria-label="Fechar guia" type="button">&times;</button>
         </div>
-        <div class="sidebar-meta">Top 30 comandos &middot; v1.0</div>
+        <div class="sidebar-meta">Top 50 comandos &middot; v1.1</div>
       </div>
 
       <div id="sidebar-search">
@@ -178,6 +204,24 @@
     <div class="victory-score" id="victory-score">Pontuação Final: 0 pts</div>
     <div class="victory-sub">Você capturou todas as flags e domina o terminal Linux!</div>
     <div class="victory-sub" id="victory-time"></div>
+    <div class="bonus-flag-panel" id="bonus-flag-panel">
+      <label class="bonus-flag-label" for="bonus-flag-input">Flag bonus</label>
+      <div class="bonus-flag-row">
+        <input
+          id="bonus-flag-input"
+          class="bonus-flag-input"
+          type="text"
+          autocomplete="off"
+          autocapitalize="off"
+          autocorrect="off"
+          spellcheck="false"
+          placeholder="FLAG{...}"
+          aria-label="Inserir flag bonus"
+        />
+        <button class="victory-btn bonus-flag-submit" id="bonus-flag-submit" type="button">validar</button>
+      </div>
+      <div class="bonus-flag-message" id="bonus-flag-message" aria-live="polite"></div>
+    </div>
     <button class="victory-btn" id="victory-restart" type="button">&#9654; Jogar Novamente</button>
     <button class="victory-btn" id="victory-exit" type="button" style="background:transparent;border-color:var(--gray);color:var(--gray)">&#10005; Sair do Modo Jogo</button>
   </div>

